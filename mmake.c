@@ -188,9 +188,15 @@ void print_command(char **cmd)
 {
 	int i = 0;
 	while (cmd[i])
-		fprintf(stdout, "%s ", cmd[i++]);
+	{
+		printf("%s", cmd[i]);
+		if (cmd[i+1])
+			printf(" ");
+
+		i++;
+	}
 	
-	fprintf(stdout, "\n");
+	printf("\n");
 }
 
 int check_rule_build(programinfo *pinfo, const char *target)
@@ -246,10 +252,10 @@ int check_rule_build(programinfo *pinfo, const char *target)
 	if (should_rebuild)
 	{
 		char **cmd = rule_cmd(ruleptr);
-		pid_t pid = fork();
-		
 		if (!pinfo->silence_commands)
 			print_command(cmd);
+		
+		pid_t pid = fork();
 
 		// Child process logic
 		if (pid == 0)
