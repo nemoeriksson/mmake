@@ -17,14 +17,21 @@ typedef struct {
 	makefile *makef;
 } programinfo;
 
+// Program handler
 programinfo *get_program_info(int argc, char **argv);
 void free_program_info(programinfo **pinfoptr);
+
 void free_target_rules(char ***target_rules_ptr, int *target_rules_count_ptr);
+
+// Helper functions
 int check_rule_build(programinfo *pinfo, const char *target);
+void print_command(char **cmd);
+
+// File manager
 int edited_sooner(struct timespec time1, struct timespec time2);
 struct timespec get_last_mod_time(const char *filename);
 int file_exists(const char *filename);
-void print_command(char **cmd);
+
 
 int main(int argc, char **argv)
 {
@@ -122,6 +129,7 @@ programinfo *get_program_info(int argc, char **argv)
 
 	if (pinfo->makef == NULL)
 	{
+		free_program_info(&pinfo);
 		fprintf(stderr, "Failed to parse makefile '%s'\n", make_filename);
 		return NULL;
 	}
@@ -257,6 +265,12 @@ int check_rule_build(programinfo *pinfo, const char *target)
 		
 		pid_t pid = fork();
 
+		if (pid < 0)
+		{
+			perror("Fork failed");
+			return 1;
+		}
+
 		// Child process logic
 		if (pid == 0)
 		{
@@ -266,10 +280,14 @@ int check_rule_build(programinfo *pinfo, const char *target)
 		}
 		
 		// Parent process logic
-		int status = -1;
-		waitpid(pid, &status, 0);
+		int child_status = -1;
+		waitpid(pid, &child_status, 0);
 
-		//TODO: Validate status of child process
+		if (WEXITSTATUS(child_status) != EXIT_SUCCESS)
+		{
+			perror("Command failed");
+			return 1;
+		}
 	}
 
 	return 0;
