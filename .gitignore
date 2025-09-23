@@ -1,0 +1,6 @@
+*.test
+*.o
+*.out
+mmakefile
+mmake
+
