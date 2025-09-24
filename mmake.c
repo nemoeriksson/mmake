@@ -1,159 +1,58 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <sys/types.h>
+/**
+ * Contains the implementation for the mmake algorithm. This program can 
+ * be used as a simple version of the 'make' command. 
+ *
+ * The program supports the use of the optional flags
+ *  -s			: Runs the program but does not print the commands ran to stdout,
+ *  -B			: Force rebuiling all targets and their prerequisites,
+ *  -f FILENAME	: Parses and builds using [FILENAME] instead of "mmakefile"
+ *
+ * When running the program it is also possible to specify which targets
+ * to build, if none are specified the first target found in the make file 
+ * will be used.
+ *
+ * Usage:
+ *  ./mmake [-f FILENAME] [-s] [-B] [TARGETS ...]
+ *
+ * @file mmake.c
+ * @author c24nen
+ * @date 2025.09.24
+ */
 
 #include "program_handler.h"
-#include "file_handler.h"
-#include "parser.h"
-
-// Helper functions
-int check_rule_build(programinfo *pinfo, const char *target);
-void print_command(char **cmd);
-int edited_sooner(struct timespec time1, struct timespec time2);
+#include "builder.h"
 
 int main(int argc, char **argv)
 {
+	// Get info about flags
 	programinfo *pinfo = get_program_info(argc, argv);
 	if (pinfo == NULL)
 		exit(EXIT_FAILURE);
 
+	// Get info about which rules to build if necessary
 	targetruleinfo *trinfo = get_argument_target_rules(argc, argv);
 	if (trinfo == NULL)
 		trinfo = get_default_target_rule(pinfo);
 	
+	// Check that the specifed rules are valid
 	if (validate_rules(pinfo, trinfo) == 1)
 	{
 		free_target_rules(&trinfo);
 		exit(EXIT_FAILURE);
 	}
 
-	for (int i = 0; i < get_targetted_rule_count(trinfo); i++)
+	// Build only necessary rules 
+	if (build_required_rules(pinfo, trinfo) == 1)
 	{
-		if (check_rule_build(pinfo, get_targetted_rule(trinfo, i)) == 1)
-		{
-			free_target_rules(&trinfo);
-			free_program_info(&pinfo);
-			exit(EXIT_FAILURE);
-		}
+		free_target_rules(&trinfo);
+		free_program_info(&pinfo);
+		exit(EXIT_FAILURE);
 	}
 
+	// Clean up dynamically allocated memory
 	free_target_rules(&trinfo);
 	free_program_info(&pinfo);
 
 	exit(EXIT_SUCCESS);
-}
-
-int edited_sooner(struct timespec time1, struct timespec time2)
-{
-	if (time1.tv_sec > time2.tv_sec) 
-		return 1;
-
-	if (time1.tv_sec  == time2.tv_sec)
-	{
-		if (time1.tv_nsec > time2.tv_nsec)
-			return 1;
-	}
-
-	return 0;
-}
-
-void print_command(char **cmd)
-{
-	int i = 0;
-	while (cmd[i])
-	{
-		printf("%s", cmd[i]);
-		if (cmd[i+1])
-			printf(" ");
-
-		i++;
-	}
-	
-	printf("\n");
-}
-
-int check_rule_build(programinfo *pinfo, const char *target)
-{
-	if (target == NULL) return 0;
-	int target_exists = file_exists(target);
-
-	rule *ruleptr = makefile_rule(get_makefile(pinfo), target);
-	if (ruleptr == NULL) 
-	{
-		if (!target_exists)
-		{
-			fprintf(stderr, "A rule for '%s' does not exist\n", target);
-			return 1;
-		}
-		return 0;
-	}
-	int should_rebuild = uses_flag(pinfo, FORCE_REBUILD);
-	const char **prereqs = rule_prereq(ruleptr);
-
-	// Build prerequisites recursively
-	int i = 0;
-	while (prereqs[i] != NULL)
-	{
-		if (check_rule_build(pinfo, prereqs[i]) != 0)
-			return 1;
-		
-		i++;
-	}
-
-	struct timespec target_mod_time = get_last_mod_time(target);
-
-	i = 0;
-	while (prereqs[i] != NULL)
-	{
-		if (!file_exists(prereqs[i]))
-		{
-			should_rebuild = 1;
-			break;
-		}
-
-		struct timespec prereq_mod_time = get_last_mod_time(prereqs[i]);
-		if (!target_exists || edited_sooner(prereq_mod_time, target_mod_time))
-		{
-			should_rebuild = 1;
-			break;
-		}
-
-		i++;
-	}
-
-	// Run rebuild logic
-	if (should_rebuild)
-	{
-		char **cmd = rule_cmd(ruleptr);
-		if (!uses_flag(pinfo, SILENCE_COMMANDS))
-			print_command(cmd);
-		
-		pid_t pid = fork();
-
-		if (pid < 0)
-		{
-			perror("Fork failed");
-			return 1;
-		}
-
-		// Child process logic
-		if (pid == 0)
-		{
-			execvp(cmd[0], cmd);
-			perror("execvp failed");
-			return 1;
-		}
-		
-		// Parent process logic
-		int child_status = -1;
-		waitpid(pid, &child_status, 0);
-
-		if (WEXITSTATUS(child_status) != EXIT_SUCCESS)
-			return 1;
-	}
-
-	return 0;
 }
 

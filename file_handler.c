@@ -2,7 +2,7 @@
  * Handles all neccessary file operations for the 
  * 'mmake' program.
  *
- * @file file_handler.h
+ * @file file_handler.c
  * @author c24nen
  * @date 25.09.24 
  */
