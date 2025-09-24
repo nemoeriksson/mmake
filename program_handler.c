@@ -11,6 +11,7 @@
 
 #include "program_handler.h"
 
+#include <stdio.h>
 #define MAX_FILENAME_LEN 256
 
 typedef struct programinfo {
@@ -27,6 +28,13 @@ typedef struct targetruleinfo {
 programinfo *get_program_info(int argc, char **argv)
 {
 	programinfo *pinfo = malloc(sizeof(*pinfo));
+
+	if (pinfo == NULL)
+	{
+		perror("Allocation failed");
+		return NULL;
+	}
+
 	pinfo->silence_commands = 0;
 	pinfo->force_rebuild = 0;
 	pinfo->makef = NULL;
@@ -109,7 +117,13 @@ targetruleinfo *get_argument_target_rules(int argc, char **argv)
 {
 	targetruleinfo *trinfo = malloc(sizeof(*trinfo));
 
-	trinfo->rule_count  = argc - optind;
+	if (trinfo == NULL)
+	{
+		perror("Allocation failed");
+		return NULL;
+	}
+
+	trinfo->rule_count = argc - optind;
 
 	if (trinfo->rule_count == 0)
 	{
@@ -118,19 +132,39 @@ targetruleinfo *get_argument_target_rules(int argc, char **argv)
 	}
 
 	trinfo->rule_targets = malloc(sizeof(*(trinfo->rule_targets)) * trinfo->rule_count);
+	if (trinfo->rule_targets == NULL)
+	{
+		free(trinfo);
+		perror("Allocation failed");
+		return NULL;
+	}
+
 	for (int i = 0; i < trinfo->rule_count; i++)
 		trinfo->rule_targets[i] = strdup(argv[optind + i]);
 
 	return trinfo;
-
 }
 
 targetruleinfo *get_default_target_rule(programinfo *pinfo)
 {
 	targetruleinfo *trinfo = malloc(sizeof(*trinfo));
+	if (trinfo == NULL)
+	{
+		perror("Allocation failed");
+		return NULL;
+	}
+
 	trinfo->rule_count = 1;
 
 	trinfo->rule_targets = malloc(sizeof(*(trinfo->rule_targets)));
+
+	if (trinfo->rule_targets == NULL)
+	{
+		free(trinfo);
+		perror("Allocation failed");
+		return NULL;
+	}
+
 	trinfo->rule_targets[0] = strdup(makefile_default_target(pinfo->makef));
 
 	return trinfo;
