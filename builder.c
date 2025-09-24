@@ -14,7 +14,9 @@
 // * Internal functions
 
 /**
- * Prints a list of arguments as a command
+ * Prints a list of arguments as a command.
+ *
+ * @param cmd	A command as a list of arguments
  */
 static void print_command(char **cmd)
 {
@@ -33,6 +35,9 @@ static void print_command(char **cmd)
 
 /**
  * Checks if the first provided timespec is sooner than the other.
+ *
+ * @param time1	Timespec to compare
+ * @param time2 The timespec to compare against
  *
  * @return		1 if time1 is sooner than time2, else 0.
  */
@@ -53,6 +58,9 @@ static int edited_sooner(struct timespec time1, struct timespec time2)
 /**
  * Checks if any prerequisites have been updated sooner than the
  * target or if the target doesn't exist.
+ *
+ * @param target	The target to check
+ * @param prereqs	A list of the target's prerequisites 
  *
  * @return	1 if target doesn't exit of a prerequisite has updated,
  *			else 0.
@@ -81,6 +89,9 @@ static int check_should_rebuild(const char *target, const char**prereqs)
 /**
  * Runs the building process for a given rule. Returns 0 on
  * success, else 1 if any step during the process fails.
+ *
+ * @param pinfo		Information about the program
+ * @param ruleptr	Pointer to the rule to build
  *
  * @return		0 on success, else 1.
  */
@@ -126,6 +137,9 @@ static int build(programinfo *pinfo, rule *ruleptr)
  *  3. The force rebuild flag has been specified
  *
  * This will be checked recursively for all prerequisites.
+ *
+ * @param pinfo		Information about the program
+ * @param target	The target to build if necessary
  *
  * @return	0 on success, else 1.
  */

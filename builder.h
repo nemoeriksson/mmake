@@ -25,6 +25,9 @@
  * success even if no building has taken place (no changes
  * to prerequisites).
  *
+ * @param pinfo		Information about the program
+ * @param trinfo	Information about all the targets to build
+ *
  * @return		0 on success, 1 if any step in the building
  *				process fails.
  */

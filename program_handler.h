@@ -44,12 +44,17 @@ programinfo *get_program_info(int argc, char **argv);
  * Checks if the provided flag option has been specified
  * as a program arguments when running the program.
  *
+ * @param pinfo		Information about the program
+ * @param flag		The flag to check
+ *
  * @return		1 if flag is in use, else 0.
  */
 int uses_flag(programinfo *pinfo, flagoption flag);
 
 /**
  * Returns the makefile from program info instance.
+ *
+ * @param pinfo		Information about the program
  *
  * @return		The makefile that is in use by the program
  */
@@ -69,6 +74,9 @@ void free_program_info(programinfo **pinfo_ptr);
  * Gets information related to the targetted make rules that were
  * specified as program arguments when running the 'mmake' program.
  *
+ * @param argc	Amount of program arguments
+ * @param argv	A list of all program arguments
+ *
  * @return		Information about the target rules specified as
  *				program arguments, if none were given then returns NULL
  */
@@ -77,6 +85,8 @@ targetruleinfo *get_argument_target_rules(int argc, char **argv);
 /**
  * Gets information related to the default make rule. This will be
  * the first rule defined in the provided makefile.
+ *
+ * @param pinfo	Information about the program
  *
  * @return		Information about the default makefile target rule.
  */
@@ -87,6 +97,8 @@ targetruleinfo *get_default_target_rule(programinfo *pinfo);
  * program as specified either as program arguments of the makefile's
  * default rule, in which this will return 1.
  *
+ * @param trinfo	Information about the targets
+ *
  * @return		The amount of rules specified as program arguments, or 1.
  */
 int get_targetted_rule_count(targetruleinfo *trinfo);
@@ -94,6 +106,9 @@ int get_targetted_rule_count(targetruleinfo *trinfo);
 /**
  * Gets the target rule's name at the specified index. Returns NULL
  * if the index is invalid.
+ *
+ * @param trinfo	Information about the targets to build
+ * @param index		Index of the target to get rule from
  *
  * @return		The target rule name, or NULL.
  */
@@ -110,6 +125,9 @@ void free_target_rules(targetruleinfo **trinfo_ptr);
  * Validates that all rules recieved from either 'get_argument_target_rules'
  * or 'get_default_target_rule' are valid rules inside the provided
  * make file.
+ *
+ * @param pinfo		Information about the program
+ * @param trinfo	Information about the targets to validate
  *
  * @returns 0 on success, 1 if any rule is invalid.
  */

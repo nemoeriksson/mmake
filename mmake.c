@@ -5,7 +5,7 @@
  * The program supports the use of the optional flags
  *  -s			: Runs the program but does not print the commands ran to stdout,
  *  -B			: Force rebuiling all targets and their prerequisites,
- *  -f FILENAME	: Parses and builds using [FILENAME] instead of "mmakefile"
+ *  -f FILENAME	: Parses and builds using [FILENAME], defaults to "mmakefile"
  *
  * When running the program it is also possible to specify which targets
  * to build, if none are specified the first target found in the make file 

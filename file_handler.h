@@ -13,8 +13,9 @@
 #include <sys/stat.h>
 
 /**
- * Gest the time of last modification for a
- * given file.
+ * Gest the time of last modification for a given file.
+ * 
+ * @param filename	The name of the file
  *
  * @returns		The time of last modification, is
  *				zeroed if file isn't found.
@@ -23,6 +24,8 @@ struct timespec get_last_mod_time(const char *filename);
 
 /**
  * Checks if a file exists of not.
+ *
+ * @param filename The name of the file
  *
  * @return		1 if the file exists, else 0.
  */
