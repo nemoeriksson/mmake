@@ -1,37 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 
+#include "program_handler.h"
+#include "file_handler.h"
 #include "parser.h"
-
-#define MAX_FILENAME_LEN 256
-#define MAX_RULE_LEN 256
-
-typedef struct {
-	int silence_commands;
-	int force_rebuild;
-	makefile *makef;
-} programinfo;
-
-// Program handler
-programinfo *get_program_info(int argc, char **argv);
-void free_program_info(programinfo **pinfoptr);
-
-void free_target_rules(char ***target_rules_ptr, int *target_rules_count_ptr);
 
 // Helper functions
 int check_rule_build(programinfo *pinfo, const char *target);
 void print_command(char **cmd);
-
-// File manager
 int edited_sooner(struct timespec time1, struct timespec time2);
-struct timespec get_last_mod_time(const char *filename);
-int file_exists(const char *filename);
-
 
 int main(int argc, char **argv)
 {
@@ -39,143 +19,30 @@ int main(int argc, char **argv)
 	if (pinfo == NULL)
 		exit(EXIT_FAILURE);
 
-		
-	// * Read goals
-	int target_rule_count = argc - optind;
-	char **target_rules = NULL;
-
-	// Use default goal
-	if (target_rule_count == 0)
+	targetruleinfo *trinfo = get_argument_target_rules(argc, argv);
+	if (trinfo == NULL)
+		trinfo = get_default_target_rule(pinfo);
+	
+	if (validate_rules(pinfo, trinfo) == 1)
 	{
-		target_rule_count = 1;
-		target_rules = malloc(sizeof(*target_rules));
-		target_rules[0] = strndup(makefile_default_target(pinfo->makef), MAX_RULE_LEN);
+		free_target_rules(&trinfo);
+		exit(EXIT_FAILURE);
 	}
 
-	// Use goals given as program arguments
-	else
+	for (int i = 0; i < get_targetted_rule_count(trinfo); i++)
 	{
-		target_rules = malloc(sizeof(*target_rules)*target_rule_count);
-		for (int i = 0; i < target_rule_count; i++)
+		if (check_rule_build(pinfo, get_targetted_rule(trinfo, i)) == 1)
 		{
-			target_rules[i] = strndup(argv[optind + i], MAX_RULE_LEN);
-			if (makefile_rule(pinfo->makef, target_rules[i]) == NULL)
-			{
-				fprintf(stderr, "Rule '%s' not found\n", target_rules[i]);
-				return 1;
-			}
-		}
-	}
-
-	for (int i = 0; i < target_rule_count; i++)
-	{
-		if (check_rule_build(pinfo, target_rules[i]) != 0)
-		{
-			free_target_rules(&target_rules, &target_rule_count);
+			free_target_rules(&trinfo);
 			free_program_info(&pinfo);
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	free_target_rules(&target_rules, &target_rule_count);
+	free_target_rules(&trinfo);
 	free_program_info(&pinfo);
 
 	exit(EXIT_SUCCESS);
-}
-
-programinfo *get_program_info(int argc, char **argv)
-{
-	programinfo *pinfo = malloc(sizeof(*pinfo));
-	pinfo->silence_commands = 0;
-	pinfo->force_rebuild = 0;
-	pinfo->makef = NULL;
-
-	int opt = 0;
-	char make_filename[MAX_FILENAME_LEN] = "mmakefile\0";
-
-	// Check flags
-	while ((opt = getopt(argc, argv, "sBf:")) != -1)
-	{
-		switch(opt)
-		{
-			case 's':
-				pinfo->silence_commands = 1;
-				break;
-			case 'B':
-				pinfo->force_rebuild = 1;
-				break;
-			case 'f':
-				strncpy(make_filename, optarg, MAX_FILENAME_LEN);
-				break;
-			default:
-				fprintf(stderr, "Usage: %s [-f FILENAME] -s -B", argv[0]);
-				free_program_info(&pinfo);
-				return NULL;
-		}
-	}
-
-	// Parse makefile
-	FILE *fptr = fopen(make_filename, "r");
-	
-	if (fptr == NULL)
-	{
-		perror("Couldn't open specified makefile");
-		free_program_info(&pinfo);
-		return NULL;
-	}
-
-	pinfo->makef = parse_makefile(fptr);
-	fclose(fptr);
-
-	if (pinfo->makef == NULL)
-	{
-		free_program_info(&pinfo);
-		fprintf(stderr, "Failed to parse makefile '%s'\n", make_filename);
-		return NULL;
-	}
-
-	return pinfo;
-}
-
-void free_program_info(programinfo **pinfoptr)
-{
-	if ((*pinfoptr)->makef != NULL)
-		makefile_del((*pinfoptr)->makef);
-
-	free(*pinfoptr);
-	*pinfoptr = NULL;
-}
-
-void free_target_rules(char ***target_rules_ptr, int *target_rules_count_ptr)
-{
-	for (int i = 0; i < *target_rules_count_ptr; i++)
-		free((*target_rules_ptr)[i]);
-
-	free(*target_rules_ptr);
-	*target_rules_ptr = NULL;
-	
-	*target_rules_count_ptr = 0;
-}
-
-int file_exists(const char *filename)
-{
-	FILE *fptr = fopen(filename, "r");
-
-	if (fptr == NULL)
-		return 0;
-
-	fclose(fptr);
-
-	return 1;
-}
-
-struct timespec get_last_mod_time(const char *filename)
-{
-	struct stat fileinfo;
-	if (stat(filename, &fileinfo) != 0)
-		return (struct timespec){0, 0};
-		
-	return fileinfo.st_mtim;
 }
 
 int edited_sooner(struct timespec time1, struct timespec time2)
@@ -212,7 +79,7 @@ int check_rule_build(programinfo *pinfo, const char *target)
 	if (target == NULL) return 0;
 	int target_exists = file_exists(target);
 
-	rule *ruleptr = makefile_rule(pinfo->makef, target);
+	rule *ruleptr = makefile_rule(get_makefile(pinfo), target);
 	if (ruleptr == NULL) 
 	{
 		if (!target_exists)
@@ -222,7 +89,7 @@ int check_rule_build(programinfo *pinfo, const char *target)
 		}
 		return 0;
 	}
-	int should_rebuild = pinfo->force_rebuild;
+	int should_rebuild = uses_flag(pinfo, FORCE_REBUILD);
 	const char **prereqs = rule_prereq(ruleptr);
 
 	// Build prerequisites recursively
@@ -260,7 +127,7 @@ int check_rule_build(programinfo *pinfo, const char *target)
 	if (should_rebuild)
 	{
 		char **cmd = rule_cmd(ruleptr);
-		if (!pinfo->silence_commands)
+		if (!uses_flag(pinfo, SILENCE_COMMANDS))
 			print_command(cmd);
 		
 		pid_t pid = fork();
@@ -284,10 +151,7 @@ int check_rule_build(programinfo *pinfo, const char *target)
 		waitpid(pid, &child_status, 0);
 
 		if (WEXITSTATUS(child_status) != EXIT_SUCCESS)
-		{
-			perror("Command failed");
 			return 1;
-		}
 	}
 
 	return 0;
