@@ -21,38 +21,65 @@
 
 #include "program_handler.h"
 #include "builder.h"
+#include "parser.h"
+
+/**
+ * Frees all dynamically allocated memory from relevant instances
+ * before exiting the program with the specified exit code.
+ *
+ * @param options	A pointer to information about the program's flags
+ * @param mfile		A pointer to the type makefile
+ * @param code		The exit code
+ */
+static void free_and_exit(optioninfo **options_ptr, makefile *mfile, int code)
+{
+	free_option_info(options_ptr);
+	makefile_del(mfile);
+	exit(code);
+}
 
 int main(int argc, char **argv)
 {
 	// Get info about flags
-	programinfo *pinfo = get_program_info(argc, argv);
-	if (pinfo == NULL)
+	optioninfo *options = get_option_info(argc, argv);
+	if (options == NULL)
 		exit(EXIT_FAILURE);
 
-	// Get info about which rules to build if necessary
-	targetruleinfo *trinfo = get_argument_target_rules(argc, argv);
-	if (trinfo == NULL)
-		trinfo = get_default_target_rule(pinfo);
-	
-	// Check that the specifed rules are valid
-	if (validate_rules(pinfo, trinfo) == 1)
+	// Parse the make file
+	makefile *mfile = get_makefile(options);
+
+	if (mfile == NULL)
 	{
-		free_target_rules(&trinfo);
+		free_option_info(&options);
 		exit(EXIT_FAILURE);
 	}
 
-	// Build only necessary rules 
-	if (build_required_rules(pinfo, trinfo) == 1)
+	// Check if specific targest were specified
+	char **custom_targets = NULL; 
+
+	if (uses_flag(options, CUSTOM_TARGETS))
 	{
-		free_target_rules(&trinfo);
-		free_program_info(&pinfo);
-		exit(EXIT_FAILURE);
+		custom_targets = &argv[optind];
+		
+		// Validate that all targets exist in the make file
+		if (validate_targets(mfile, custom_targets) == 1)
+				free_and_exit(&options, mfile, EXIT_FAILURE);
+
+		// Check the build of all specified targets
+		int rule_index = -1;
+		while(custom_targets[++rule_index])
+		{
+			if (check_target_build(options, mfile, custom_targets[rule_index]) == 1)
+				free_and_exit(&options, mfile, EXIT_FAILURE);
+		}
+	}
+	else // Build default rule only
+	{
+		if (check_target_build(options, mfile, makefile_default_target(mfile)) == 1)
+			free_and_exit(&options, mfile, EXIT_FAILURE);
 	}
 
 	// Clean up dynamically allocated memory
-	free_target_rules(&trinfo);
-	free_program_info(&pinfo);
-
-	exit(EXIT_SUCCESS);
+	free_and_exit(&options, mfile, EXIT_SUCCESS);
 }
 

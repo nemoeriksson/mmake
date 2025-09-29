@@ -60,7 +60,7 @@ static int edited_sooner(struct timespec time1, struct timespec time2)
  * target or if the target doesn't exist.
  *
  * @param target	The target to check
- * @param prereqs	A list of the target's prerequisites 
+ * @param prereqs	A NULL-terminated list of the target's prerequisites 
  *
  * @return	1 if target doesn't exit of a prerequisite has updated,
  *			else 0.
@@ -69,8 +69,8 @@ static int check_should_rebuild(const char *target, const char**prereqs)
 {
 	struct timespec target_mod_time = get_last_mod_time(target);
 
-	int i = 0;
-	while (prereqs[i] != NULL)
+	int i = -1;
+	while (prereqs[++i] != NULL)
 	{
 		if (!file_exists(prereqs[i]))
 			return 1;
@@ -79,8 +79,6 @@ static int check_should_rebuild(const char *target, const char**prereqs)
 		
 		if (!file_exists(target) || edited_sooner(prereq_mod_time, target_mod_time))
 			return 1;
-
-		i++;
 	}
 
 	return 0;
@@ -90,16 +88,16 @@ static int check_should_rebuild(const char *target, const char**prereqs)
  * Runs the building process for a given rule. Returns 0 on
  * success, else 1 if any step during the process fails.
  *
- * @param pinfo		Information about the program
+ * @param options	Information about the program's flags
  * @param ruleptr	Pointer to the rule to build
  *
  * @return		0 on success, else 1.
  */
-static int build(programinfo *pinfo, rule *ruleptr)
+static int build(optioninfo *options, rule *ruleptr)
 {
 	char **cmd = rule_cmd(ruleptr);
 
-	if (!uses_flag(pinfo, SILENCE_COMMANDS))
+	if (!uses_flag(options, SILENCE_COMMANDS))
 		print_command(cmd);
 	
 	pid_t pid = fork();
@@ -129,26 +127,14 @@ static int build(programinfo *pinfo, rule *ruleptr)
 	return 0;
 }
 
-/**
- * Handles logic related to checking if a target should be
- * built or not, and if so builds it. A rule will be rebuilt if:
- *  1. The target doesn't exit
- *  2. Any prerequisite has been updated sooner than the target
- *  3. The force rebuild flag has been specified
- *
- * This will be checked recursively for all prerequisites.
- *
- * @param pinfo		Information about the program
- * @param target	The target to build if necessary
- *
- * @return	0 on success, else 1.
- */
-static int check_rule_build(programinfo *pinfo, const char *target)
+// * Visible functions
+
+int check_target_build(optioninfo *options, makefile *mfile, const char *target)
 {
 	if (target == NULL) return 0;
 	int target_exists = file_exists(target);
 
-	rule *ruleptr = makefile_rule(get_makefile(pinfo), target);
+	rule *ruleptr = makefile_rule(mfile, target);
 	
 	if (ruleptr == NULL) 
 	{
@@ -165,17 +151,15 @@ static int check_rule_build(programinfo *pinfo, const char *target)
 	const char **prereqs = rule_prereq(ruleptr);
 
 	// Build prerequisites recursively
-	int i = 0;
-	while (prereqs[i] != NULL)
+	int i = -1;
+	while (prereqs[++i] != NULL)
 	{
-		if (check_rule_build(pinfo, prereqs[i]) != 0)
+		if (check_target_build(options, mfile, prereqs[i]) != 0)
 			return 1;
-		
-		i++;
 	}
 
 	// Check if this target needs to be rebuilt
-	int should_rebuild = uses_flag(pinfo, FORCE_REBUILD);
+	int should_rebuild = uses_flag(options, FORCE_REBUILD);
 
 	if (check_should_rebuild(target, prereqs) == 1)
 		should_rebuild = 1;
@@ -183,20 +167,7 @@ static int check_rule_build(programinfo *pinfo, const char *target)
 	// Run rebuild logic
 	if (should_rebuild)
 	{
-		if (build(pinfo, ruleptr) == 1)
-			return 1;
-	}
-
-	return 0;
-}
-
-// * Visisble functions
-
-int build_required_rules(programinfo *pinfo, targetruleinfo *trinfo)
-{
-	for (int i = 0; i < get_targetted_rule_count(trinfo); i++)
-	{
-		if (check_rule_build(pinfo, get_targetted_rule(trinfo, i)) == 1)
+		if (build(options, ruleptr) == 1)
 			return 1;
 	}
 

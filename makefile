@@ -8,13 +8,13 @@ OBJ_CMD = $(CC) $(CFLAGS) -c $<
 
 all: mmake
 
-mmake: mmake.o program_handler.o file_handler.o builder.o parser.o
-	$(CC) $(CFLAGS) $^ -o mmake 
+mmake: mmake.o builder.o program_handler.o file_handler.o parser.o
+	$(CC) $(CFLAGS) $^ -o mmake
 
-mmake.o: mmake.c program_handler.h builder.h
+mmake.o: mmake.c program_handler.h builder.h parser.h
 	$(OBJ_CMD)
 
-builder.o: builder.c file_handler.h program_handler.h
+builder.o: builder.c parser.h program_handler.h file_handler.h
 	$(OBJ_CMD)
 
 program_handler.o: program_handler.c parser.h
@@ -23,7 +23,7 @@ program_handler.o: program_handler.c parser.h
 file_handler.o: file_handler.c
 	$(OBJ_CMD)
 
-parser.o: parser.c 
+parser.o: parser.c
 	$(OBJ_CMD)
 
 clean:

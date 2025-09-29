@@ -16,20 +16,23 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 
+#include "parser.h"
 #include "program_handler.h"
 #include "file_handler.h"
 
 /**
- * Iterates through all rules and checks if they need to be
- * built or not (i.e. have been updated). Will return 0 on
- * success even if no building has taken place (no changes
- * to prerequisites).
+ * Handles logic related to checking if a target should be
+ * built or not, and if so builds it. A rule will be rebuilt if:
+ *  1. The target doesn't exit
+ *  2. Any prerequisite has been updated sooner than the target
+ *  3. The force rebuild flag has been specified
  *
- * @param pinfo		Information about the program
- * @param trinfo	Information about all the targets to build
+ * This will be checked recursively for all prerequisites.
  *
- * @return		0 on success, 1 if any step in the building
- *				process fails.
+ * @param options	Information about the program's flags
+ * @param target	The target to build if necessary
+ *
+ * @return	0 on success, else 1.
  */
-int build_required_rules(programinfo *pinfo, targetruleinfo *trinfo);
+int check_target_build(optioninfo *options, makefile *mfile, const char *target);
 

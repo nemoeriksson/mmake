@@ -11,36 +11,33 @@
 
 #include "program_handler.h"
 
-#include <stdio.h>
+#include "parser.h"
 #define MAX_FILENAME_LEN 256
 
-typedef struct programinfo {
+typedef struct optioninfo {
 	int silence_commands;
 	int force_rebuild;
-	makefile *makef;
-} programinfo;
+	int custom_targets;
+	char *makefile_name;
+} optioninfo;
 
-typedef struct targetruleinfo {
-	char **rule_targets;
-	int rule_count;
-} targetruleinfo;
-
-programinfo *get_program_info(int argc, char **argv)
+optioninfo *get_option_info(int argc, char **argv)
 {
-	programinfo *pinfo = malloc(sizeof(*pinfo));
+	optioninfo *options = malloc(sizeof(*options));
 
-	if (pinfo == NULL)
+	if (options == NULL)
 	{
 		perror("Allocation failed");
 		return NULL;
 	}
 
-	pinfo->silence_commands = 0;
-	pinfo->force_rebuild = 0;
-	pinfo->makef = NULL;
+	options->silence_commands = 0;
+	options->force_rebuild = 0;
+	options->custom_targets = 0;
+	options->makefile_name = NULL;
 
+	int uses_custom_makefile = 0;
 	int opt = 0;
-	char make_filename[MAX_FILENAME_LEN] = "mmakefile\0";
 
 	// Check flags
 	while ((opt = getopt(argc, argv, "sBf:")) != -1)
@@ -48,163 +45,87 @@ programinfo *get_program_info(int argc, char **argv)
 		switch(opt)
 		{
 			case 's':
-				pinfo->silence_commands = 1;
+				options->silence_commands = 1;
 				break;
 			case 'B':
-				pinfo->force_rebuild = 1;
+				options->force_rebuild = 1;
 				break;
 			case 'f':
-				strncpy(make_filename, optarg, MAX_FILENAME_LEN);
+				uses_custom_makefile = 1;
+				options->makefile_name = strdup(optarg);
 				break;
 			default:
-				fprintf(stderr, "Usage: %s [-f FILENAME] -s -B", argv[0]);
-				free_program_info(&pinfo);
+				fprintf(stderr, "Usage: %s [-f FILENAME] -s -B\n", argv[0]);
+				free_option_info(&options);
 				return NULL;
 		}
 	}
 
-	// Parse makefile
-	FILE *fptr = fopen(make_filename, "r");
-	
-	if (fptr == NULL)
-	{
-		perror("Couldn't open specified makefile");
-		free_program_info(&pinfo);
-		return NULL;
-	}
+	// Use default filename if custom makefile name wasn't specified
+	if (!uses_custom_makefile)
+		options->makefile_name = strdup("mmakefile");
 
-	pinfo->makef = parse_makefile(fptr);
-	fclose(fptr);
+	// Check if targets have been given
+	if (argc - 1 > optind)
+		options->custom_targets = 1;
 
-	if (pinfo->makef == NULL)
-	{
-		free_program_info(&pinfo);
-		fprintf(stderr, "Failed to parse makefile '%s'\n", make_filename);
-		return NULL;
-	}
-
-	return pinfo;
+	return options;
 }
 
-int uses_flag(programinfo *pinfo, flagoption flag)
+int uses_flag(optioninfo *options, flagtype flag)
 {
 	switch (flag)
 	{
 		case SILENCE_COMMANDS:
-			return pinfo->silence_commands;
+			return options->silence_commands;
 		case FORCE_REBUILD:
-			return pinfo->force_rebuild;
+			return options->force_rebuild;
+		case CUSTOM_TARGETS:
+			return options->custom_targets;
 	}
 
 	return 0;
 }
 
-makefile *get_makefile(programinfo *pinfo)
+makefile *get_makefile(optioninfo *options)
 {
-	return pinfo->makef;
-}
+	FILE *fptr = fopen(options->makefile_name, "r");
 
-void free_program_info(programinfo **pinfoptr)
-{
-	if ((*pinfoptr)->makef != NULL)
-		makefile_del((*pinfoptr)->makef);
-
-	free(*pinfoptr);
-	*pinfoptr = NULL;
-}
-
-targetruleinfo *get_argument_target_rules(int argc, char **argv)
-{
-	targetruleinfo *trinfo = malloc(sizeof(*trinfo));
-
-	if (trinfo == NULL)
+	if (fptr == NULL)
 	{
-		perror("Allocation failed");
+		fprintf(stderr, "Coudln't open '%s'", options->makefile_name);
 		return NULL;
 	}
 
-	trinfo->rule_count = argc - optind;
+	makefile *mfile = parse_makefile(fptr);
 
-	if (trinfo->rule_count == 0)
+	fclose(fptr);
+
+	if (mfile == NULL)
 	{
-		free(trinfo);
+		fprintf(stderr, "Coudln't parse '%s'\n", options->makefile_name);
 		return NULL;
 	}
 
-	trinfo->rule_targets = malloc(sizeof(*(trinfo->rule_targets)) * trinfo->rule_count);
-	if (trinfo->rule_targets == NULL)
+	return mfile;
+}
+
+void free_option_info(optioninfo **options_ptr)
+{
+	free((*options_ptr)->makefile_name);
+	free(*options_ptr);
+	*options_ptr = NULL;
+}
+
+int validate_targets(makefile *mfile, char **targets)
+{
+	int i = -1;
+	while (targets[++i])
 	{
-		free(trinfo);
-		perror("Allocation failed");
-		return NULL;
-	}
-
-	for (int i = 0; i < trinfo->rule_count; i++)
-		trinfo->rule_targets[i] = strdup(argv[optind + i]);
-
-	return trinfo;
-}
-
-targetruleinfo *get_default_target_rule(programinfo *pinfo)
-{
-	targetruleinfo *trinfo = malloc(sizeof(*trinfo));
-	if (trinfo == NULL)
-	{
-		perror("Allocation failed");
-		return NULL;
-	}
-
-	trinfo->rule_count = 1;
-
-	trinfo->rule_targets = malloc(sizeof(*(trinfo->rule_targets)));
-
-	if (trinfo->rule_targets == NULL)
-	{
-		free(trinfo);
-		perror("Allocation failed");
-		return NULL;
-	}
-
-	trinfo->rule_targets[0] = strdup(makefile_default_target(pinfo->makef));
-
-	return trinfo;
-}
-
-int get_targetted_rule_count(targetruleinfo *trinfo)
-{
-	return trinfo->rule_count;
-}
-
-char *get_targetted_rule(targetruleinfo *trinfo, int index)
-{
-	if (index > trinfo->rule_count-1 || index < 0)
-		return NULL;
-
-	return trinfo->rule_targets[index];
-}
-
-void free_target_rules(targetruleinfo **trinfo_ptr)
-{
-	for (int i = 0; i < (*trinfo_ptr)->rule_count; i++)
-		free((*trinfo_ptr)->rule_targets[i]);
-
-	free((*trinfo_ptr)->rule_targets);
-	free(*trinfo_ptr);
-	*trinfo_ptr = NULL;
-}
-
-int validate_rules(programinfo *pinfo, targetruleinfo *trinfo)
-{
-	for (int i = 0; i < trinfo->rule_count; i++)
-	{
-		if (makefile_rule(pinfo->makef, trinfo->rule_targets[i]) == NULL)
-		{
-			fprintf(stderr, "Rule '%s' not found\n", trinfo->rule_targets[i]);
+		if (makefile_rule(mfile, targets[i]) == NULL)
 			return 1;
-		}
 	}
 
 	return 0;
 }
-
 

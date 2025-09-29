@@ -18,19 +18,17 @@
 
 #include "parser.h"
 
-typedef struct programinfo programinfo;
-typedef struct targetruleinfo targetruleinfo;
+typedef struct optioninfo optioninfo;
 
-typedef enum flagoption {
+typedef enum flagtype {
 	SILENCE_COMMANDS,
-	FORCE_REBUILD
-} flagoption;
+	FORCE_REBUILD,
+	CUSTOM_TARGETS
+} flagtype;
 
 /**
  * Parses the flags given when running the 'mmake'
- * program and returns related information that can
- * be used in the rest of the program to read the
- * flag's states and the makefile that should be parsed.
+ * program and returns related informatio 
  * 
  * @param argc	The total amount of program arguments given
  * @param argv	A list of all program arguments
@@ -38,99 +36,50 @@ typedef enum flagoption {
  * @return		A pointer to an object containing the related 
  *				program information 
  */
-programinfo *get_program_info(int argc, char **argv);
+optioninfo *get_option_info(int argc, char **argv);
 
 /**
  * Checks if the provided flag option has been specified
  * as a program arguments when running the program.
  *
- * @param pinfo		Information about the program
+ * @param options	Information about the program's flags
  * @param flag		The flag to check
  *
  * @return		1 if flag is in use, else 0.
  */
-int uses_flag(programinfo *pinfo, flagoption flag);
+int uses_flag(optioninfo *options, flagtype flag);
 
 /**
- * Returns the makefile from program info instance.
+ * Opens and parses a makefile. Will use the filename from the
+ * optioninfo instance. Will return NULL if any errors occurs.
  *
- * @param pinfo		Information about the program
+ * @param options	Information about the program's flags
  *
- * @return		The makefile that is in use by the program
+ * @return			A pointer to type makefile, or NULL on error.
  */
-makefile *get_makefile(programinfo *pinfo);
+makefile *get_makefile(optioninfo *options);
 
 /**
  * Frees all dynamically allocated memory used by the
- * program info that was recieved from the 'get_program_info'
- * function. Sets the programinfo pointer to NULL.
+ * options info that was recieved from the 'get_option_info'
+ * function. Sets the provided pointer to NULL.
  *
- * @param pinfo_ptr		A pointer to the program info
+ * @param options_ptr		A pointer to the program's flag info
  */
-void free_program_info(programinfo **pinfo_ptr);
-
-
-/**
- * Gets information related to the targetted make rules that were
- * specified as program arguments when running the 'mmake' program.
- *
- * @param argc	Amount of program arguments
- * @param argv	A list of all program arguments
- *
- * @return		Information about the target rules specified as
- *				program arguments, if none were given then returns NULL
- */
-targetruleinfo *get_argument_target_rules(int argc, char **argv);
+void free_option_info(optioninfo **options_ptr);
 
 /**
- * Gets information related to the default make rule. This will be
- * the first rule defined in the provided makefile.
+ * Validates that all targets in a NULL-terminated list
+ * 'targets' have valid rules inside the provided make
+ * file. Returns 0 on success, 1 on failure.
  *
- * @param pinfo	Information about the program
+ * @param mfile		The makefile
+ * @param targets	A NULL-terminated list of all the 
+ *					targets to check.
  *
- * @return		Information about the default makefile target rule.
+ * @return			0 on success, 1 if any targets does
+ *					not have a rule.
  */
-targetruleinfo *get_default_target_rule(programinfo *pinfo);
-
-/**
- * Gets the number of rules that need to be checked to build the
- * program as specified either as program arguments of the makefile's
- * default rule, in which this will return 1.
- *
- * @param trinfo	Information about the targets
- *
- * @return		The amount of rules specified as program arguments, or 1.
- */
-int get_targetted_rule_count(targetruleinfo *trinfo);
-
-/**
- * Gets the target rule's name at the specified index. Returns NULL
- * if the index is invalid.
- *
- * @param trinfo	Information about the targets to build
- * @param index		Index of the target to get rule from
- *
- * @return		The target rule name, or NULL.
- */
-char *get_targetted_rule(targetruleinfo *trinfo, int index);
-
-/**
- * Frees all dynamically allocated memory that is used by an
- * instance of targetruleinfo. Also sets the targetruleinfo
- * pointer to NULL.
- */
-void free_target_rules(targetruleinfo **trinfo_ptr);
-
-/**
- * Validates that all rules recieved from either 'get_argument_target_rules'
- * or 'get_default_target_rule' are valid rules inside the provided
- * make file.
- *
- * @param pinfo		Information about the program
- * @param trinfo	Information about the targets to validate
- *
- * @returns 0 on success, 1 if any rule is invalid.
- */
-int validate_rules(programinfo *pinfo, targetruleinfo *trinfo);
+int validate_targets(makefile *mfile, char **targets);
 
 
