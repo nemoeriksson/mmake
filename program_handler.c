@@ -15,10 +15,11 @@
 #define MAX_FILENAME_LEN 256
 
 typedef struct optioninfo {
-	int silence_commands;
-	int force_rebuild;
-	int custom_targets;
-	char *makefile_name;
+	int silence_commands; // Related to -s flag
+	int force_rebuild;    // Related to -B flag
+	int custom_targets;   // Related to [TARGETS ...] arguments. 
+						  //  1 if specified, else 0 (use default target)
+	char *makefile_name;  // Name of the makefile to parse
 } optioninfo;
 
 optioninfo *get_option_info(int argc, char **argv)
