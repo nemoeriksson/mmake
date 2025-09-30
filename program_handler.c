@@ -117,15 +117,4 @@ void free_option_info(optioninfo **options_ptr)
 	*options_ptr = NULL;
 }
 
-int validate_targets(makefile *mfile, char **targets)
-{
-	int i = -1;
-	while (targets[++i])
-	{
-		if (makefile_rule(mfile, targets[i]) == NULL)
-			return 1;
-	}
-
-	return 0;
-}
 

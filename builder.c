@@ -174,3 +174,15 @@ int check_target_build(optioninfo *options, makefile *mfile, const char *target)
 	return 0;
 }
 
+int validate_targets(makefile *mfile, char **targets)
+{
+	int i = -1;
+	while (targets[++i])
+	{
+		if (makefile_rule(mfile, targets[i]) == NULL)
+			return 1;
+	}
+
+	return 0;
+}
+

@@ -68,18 +68,3 @@ makefile *get_makefile(optioninfo *options);
  */
 void free_option_info(optioninfo **options_ptr);
 
-/**
- * Validates that all targets in a NULL-terminated list
- * 'targets' have valid rules inside the provided make
- * file. Returns 0 on success, 1 on failure.
- *
- * @param mfile		The makefile
- * @param targets	A NULL-terminated list of all the 
- *					targets to check.
- *
- * @return			0 on success, 1 if any targets does
- *					not have a rule.
- */
-int validate_targets(makefile *mfile, char **targets);
-
-

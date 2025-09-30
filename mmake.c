@@ -55,11 +55,9 @@ int main(int argc, char **argv)
 	}
 
 	// Check if specific targest were specified
-	char **custom_targets = NULL; 
-
 	if (uses_flag(options, CUSTOM_TARGETS))
 	{
-		custom_targets = &argv[optind];
+		char **custom_targets = &argv[optind];
 		
 		// Validate that all targets exist in the make file
 		if (validate_targets(mfile, custom_targets) == 1)
@@ -73,7 +71,7 @@ int main(int argc, char **argv)
 				free_and_exit(&options, mfile, EXIT_FAILURE);
 		}
 	}
-	else // Build default rule only
+	else // Build default target only
 	{
 		if (check_target_build(options, mfile, makefile_default_target(mfile)) == 1)
 			free_and_exit(&options, mfile, EXIT_FAILURE);
