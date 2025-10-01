@@ -5,7 +5,7 @@
  *
  * @file builder.c
  * @author c24nen
- * @date 2025.09.24
+ * @date 2025.10.01
  */
 
 #include "builder.h"
@@ -69,6 +69,10 @@ static int check_should_rebuild(const char *target, const char**prereqs)
 {
 	struct timespec target_mod_time = get_last_mod_time(target);
 
+	// Check if get_last_mod_time() failed
+	if (target_mod_time.tv_sec == -1)
+		return 1;
+
 	int i = -1;
 	while (prereqs[++i] != NULL)
 	{
@@ -76,7 +80,11 @@ static int check_should_rebuild(const char *target, const char**prereqs)
 			return 1;
 
 		struct timespec prereq_mod_time = get_last_mod_time(prereqs[i]);
-		
+	
+		// Check if get_last_mod_time() failed
+		if (prereq_mod_time.tv_sec == -1)
+			return 1;
+
 		if (!file_exists(target) || edited_sooner(prereq_mod_time, target_mod_time))
 			return 1;
 	}
@@ -121,7 +129,7 @@ static int build(optioninfo *options, rule *ruleptr)
 	waitpid(pid, &child_status, 0);
 
 	// Validate child process exit status
-	if (WEXITSTATUS(child_status) != EXIT_SUCCESS)
+	if (child_status != 0)
 		return 1;
 
 	return 0;

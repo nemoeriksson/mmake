@@ -6,7 +6,7 @@
  *
  * @file program_handler.c
  * @author c24nen
- * @date 2025.09.24
+ * @date 2025.10.01
  */
 
 #include "program_handler.h"
@@ -18,7 +18,6 @@ typedef struct optioninfo {
 	int silence_commands; // Related to -s flag
 	int force_rebuild;    // Related to -B flag
 	int custom_targets;   // Related to [TARGETS ...] arguments. 
-						  //  1 if specified, else 0 (use default target)
 	char *makefile_name;  // Name of the makefile to parse
 } optioninfo;
 
@@ -64,8 +63,16 @@ optioninfo *get_option_info(int argc, char **argv)
 
 	// Use default filename if custom makefile name wasn't specified
 	if (!uses_custom_makefile)
+	{
 		options->makefile_name = strdup("mmakefile");
-
+	
+		if (options->makefile_name == NULL)
+		{
+			perror("Allocation failed");
+			free_option_info(&options);
+			return NULL;
+		}
+	}
 	// Check if targets have been given
 	if (argc - 1 > optind)
 		options->custom_targets = 1;

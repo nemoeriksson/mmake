@@ -6,7 +6,7 @@
  *
  * @file file_handler.h
  * @author c24nen
- * @date 25.09.24 
+ * @date 25.10.01
  */
 
 #include <stdio.h>
@@ -18,7 +18,8 @@
  * @param filename	The name of the file
  *
  * @returns		The time of last modification, is
- *				zeroed if file isn't found.
+ *				zeroed if file isn't found. Will
+ *				set to -1 if error occurs.
  */
 struct timespec get_last_mod_time(const char *filename);
 
